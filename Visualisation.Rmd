@@ -230,12 +230,7 @@ tm_shape(res2021) +
         breaks=breaks1,
         palette=GIColours,
         midpoint=NA,
-        title="Local Getis-Ord G") +
-  tm_compass(position = c("right", "top"),type = "arrow") + 
-  tm_scale_bar(position = c("center", "bottom")) +
-  tm_layout(title = "Hot and cold spots of Casualty Location Rate", 
-            legend.position = c("left", "bottom"),
-            title.position = c("center", "top"))
+        title="Local Getis-Ord G")
 ```
 Local Moran's I：
 评估每个空间单元（如区域）与其邻居之间的空间自相关性，揭示 局部空间聚集模式。
@@ -315,7 +310,7 @@ t1 <- tm_shape(res2021) +
             legend.position = c("left", "bottom"),
             title.position = c("center", "top"))
 t1
-tmap_save(t1, 'Hot and cold spots of Casualty Rate (2021).png')
+tmap_save(t1, 'hot_cold_spots_graphs/Hot and cold spots of Casualty Rate (2021).png')
 ```
 
 ```{r}
@@ -335,7 +330,7 @@ t2 <- tm_shape(res2021) +
             legend.position = c("left", "bottom"),
             title.position = c("center", "top"))
 
-tmap_save(t2, 'Hot and cold spots of Casualty Length Rate (2021).png')
+tmap_save(t2, 'hot_cold_spots_graphs/Hot and cold spots of Casualty Length Rate (2021).png')
 t2
 ```
 
@@ -353,7 +348,7 @@ t3 <- tm_shape(res2022) +
             legend.position = c("left", "bottom"),
             title.position = c("center", "top"))
 
-tmap_save(t3, 'Hot and cold spots of Casualty Rate (2022).png')
+tmap_save(t3, 'hot_cold_spots_graphs/Hot and cold spots of Casualty Rate (2022).png')
 t3
 ```
 
@@ -371,7 +366,7 @@ t4 <- tm_shape(res2022) +
             legend.position = c("left", "bottom"),
             title.position = c("center", "top"))
 
-tmap_save(t4, 'Hot and cold spots of Casualty Length Rate (2022).png')
+tmap_save(t4, 'hot_cold_spots_graphs/Hot and cold spots of Casualty Length Rate (2022).png')
 t4
 
 ```
@@ -390,7 +385,7 @@ t5 <- tm_shape(res2023) +
             legend.position = c("left", "bottom"),
             title.position = c("center", "top"))
 
-tmap_save(t5, 'Hot and cold spots of Casualty Rate (2023).png')
+tmap_save(t5, 'hot_cold_spots_graphs/Hot and cold spots of Casualty Rate (2023).png')
 t5
 ```
 
@@ -408,7 +403,7 @@ t6 <- tm_shape(res2023) +
             legend.position = c("left", "bottom"),
             title.position = c("center", "top"))
 
-tmap_save(t6, 'Hot and cold spots of Casualty Length Rate (2023).png')
+tmap_save(t6, 'hot_cold_spots_graphs/Hot and cold spots of Casualty Length Rate (2023).png')
 t6
 ```
 

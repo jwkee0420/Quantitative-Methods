@@ -1,0 +1,414 @@
+
+```{r}
+library(sf)
+library(tidyverse)
+library(tmap)
+library(spdep)
+
+```
+
+
+```{r}
+res2021 <- st_read('data/results/res2021.gpkg')
+res2022 <- st_read('data/results/res2022.gpkg')
+res2023 <- st_read('data/results/res2023.gpkg')
+
+
+```
+```{r}
+
+# 确保 res2021 是 sf 对象
+res2021 <- st_make_valid(res2021)
+res2022 <- st_make_valid(res2022)
+res2023 <- st_make_valid(res2023)
+
+tm_shape(res2021) +
+    tm_polygons("casualty_people_rate",
+        style="fisher",
+        palette="PuOr",
+        midpoint=NA,
+        title="casualty_people_rate")
+
+```
+
+neighbours list
+```{r}
+library(spdep)
+
+coordsW2021 <- res2021%>%
+  st_centroid()%>%
+  st_geometry()
+  
+plot(coordsW2021,axes=TRUE)
+
+#create a neighbours list
+res2021_nb <- res2021 %>%
+  poly2nb(., queen=T)
+res2022_nb <- res2022 %>%
+  poly2nb(., queen=T)
+res2023_nb <- res2023 %>%
+  poly2nb(., queen=T)
+
+#plot them
+plot(res2021_nb, st_geometry(coordsW2021), col="red")
+#add a map underneath
+plot(res2021$geom, add=T)
+
+```
+
+weights matrix
+```{r}
+#create a spatial weights matrix from these weights
+res2021.lw <- res2021_nb %>%
+  nb2listw(., style="C")
+res2022.lw <- res2022_nb %>%
+  nb2listw(., style="C")
+res2023.lw <- res2023_nb %>%
+  nb2listw(., style="C")
+
+```
+
+Moran’s I
+Moran’s I test tells us whether we have clustered values (close to 1) or dispersed values (close to -1),
+```{r}
+I_res2021_Global_people_Density <- res2021 %>%
+  pull(casualty_people_rate) %>%
+  as.vector()%>%
+  moran.test(., res2021.lw)
+I_res2021_Global_length_Density <- res2021 %>%
+  pull(casualty_length_rate) %>%
+  as.vector()%>%
+  moran.test(., res2021.lw)
+
+I_res2022_Global_people_Density <- res2022 %>%
+  pull(casualty_people_rate) %>%
+  as.vector()%>%
+  moran.test(., res2022.lw)
+I_res2022_Global_length_Density <- res2022 %>%
+  pull(casualty_length_rate) %>%
+  as.vector()%>%
+  moran.test(., res2022.lw)
+
+I_res2023_Global_people_Density <- res2023 %>%
+  pull(casualty_people_rate) %>%
+  as.vector()%>%
+  moran.test(., res2023.lw)
+I_res2023_Global_length_Density <- res2023 %>%
+  pull(casualty_length_rate) %>%
+  as.vector()%>%
+  moran.test(., res2023.lw)
+
+I_res2021_Global_people_Density
+I_res2021_Global_length_Density
+I_res2022_Global_people_Density
+I_res2022_Global_length_Density
+I_res2023_Global_people_Density
+I_res2023_Global_length_Density
+```
+
+Geary’s C 
+Geary’s C tells us whether similar values or dissimilar values are clustering
+Moran's I：
+
+Moran's I 的统计量更容易理解，并且具有较好的理论基础，特别是在理论研究中，广泛用于测试空间数据的自相关性。
+Geary's C：
+Geary's C 侧重于局部差异，理论上较为复杂。其结果可能会受到离群值和局部特征的影响，解释起来有时较为困难。
+
+```{r}
+# C_LWard_Global_people_Density <- 
+#   res2021 %>%
+#   pull(casualty_people_rate) %>%
+#   as.vector()%>%
+#   geary.test(., res2021.lw)
+# 
+# C_LWard_Global_length_Density <- 
+#   res2021 %>%
+#   pull(casualty_length_rate) %>%
+#   as.vector()%>%
+#   geary.test(., res2021.lw)
+# 
+# C_LWard_Global_people_Density
+# C_LWard_Global_length_Density
+
+```
+
+ Local Moran’s I
+```{r}
+I_res2021_local_people_Density <- res2021 %>%
+  pull(casualty_people_rate) %>%
+  as.vector()%>%
+  localmoran(., res2021.lw) %>% 
+  as_tibble()
+
+I_res2021_local_length_Density <- res2021 %>%
+  pull(casualty_length_rate) %>%
+  as.vector()%>%
+  localmoran(., res2021.lw) %>% 
+  as_tibble()
+
+#what does the output (the localMoran object) look like?
+slice_head(I_res2021_local_people_Density, n=5)
+```
+```{r}
+res2021 <- res2021 %>%
+  mutate(casualty_people_rate_I =
+           as.numeric(I_res2021_local_people_Density$Ii))%>%
+  mutate(casualty_people_rate_Iz=
+           as.numeric(I_res2021_local_people_Density$Z.Ii))%>%
+  mutate(casualty_length_rate_I =as.numeric(I_res2021_local_length_Density$Ii))%>%
+  mutate(casualty_length_rate_Iz =as.numeric(I_res2021_local_length_Density$Z.Ii))
+```
+ 
+
+mapping
+```{r}
+library(RColorBrewer)
+breaks1<-c(-1000,-2.58,-1.96,-1.65,1.65,1.96,2.58,1000)
+
+MoranColours<- rev(brewer.pal(8, "RdGy"))
+
+tm_shape(res2021) +
+    tm_polygons("casualty_people_rate_Iz",
+        style="fixed",
+        breaks=breaks1,
+        palette=MoranColours,
+        midpoint=NA,
+        title="Local Moran's I, casualty_people_rate")
+
+tm_shape(res2021) +
+    tm_polygons("casualty_length_rate_Iz",
+        style="fixed",
+        breaks=breaks1,
+        palette=MoranColours,
+        midpoint=NA,
+        title="Local Moran's I, casualty_length_rate")
+```
+
+Local Getis Ord G
+
+```{r}
+Gi_res2021_Local_people_Density <- res2021 %>%
+  pull(casualty_people_rate) %>%
+  as.vector()%>%
+  localG(., res2021.lw)
+
+Gi_res2021_Local_length_Density <- res2021 %>%
+  pull(casualty_length_rate) %>%
+  as.vector()%>%
+  localG(., res2021.lw)
+
+head(Gi_res2021_Local_people_Density)
+head(Gi_res2021_Local_length_Density)
+
+res2021 <- res2021 %>%
+  mutate(casualty_people_rate_G = as.numeric(Gi_res2021_Local_people_Density)) %>%   mutate(casualty_length_rate_G = as.numeric(Gi_res2021_Local_length_Density))
+
+```
+mapping
+```{r}
+library(RColorBrewer)
+
+GIColours<- rev(brewer.pal(8, "RdBu"))
+
+#now plot on an interactive map
+tm_shape(res2021) +
+    tm_polygons("casualty_people_rate_G",
+        style="fixed",
+        breaks=breaks1,
+        palette=GIColours,
+        midpoint=NA,
+        title="Gi*, casualty_people_rate")
+```
+```{r}
+
+#now plot on an interactive map
+tmap_mode('plot')
+
+tm_shape(res2021) +
+    tm_polygons("casualty_length_rate_G",
+        style="fixed",
+        breaks=breaks1,
+        palette=GIColours,
+        midpoint=NA,
+        title="Local Getis-Ord G") +
+  tm_compass(position = c("right", "top"),type = "arrow") + 
+  tm_scale_bar(position = c("center", "bottom")) +
+  tm_layout(title = "Hot and cold spots of Casualty Location Rate", 
+            legend.position = c("left", "bottom"),
+            title.position = c("center", "top"))
+```
+Local Moran's I：
+评估每个空间单元（如区域）与其邻居之间的空间自相关性，揭示 局部空间聚集模式。
+正的局部 Moran's I 值：表明该区域及其邻居具有相似的属性值（如高-高聚集或低-低聚集）。
+负的局部 Moran's I 值：表明该区域与邻居的属性值存在显著差异（如高-低或低-高）。
+
+Local Getis-Ord G：确定空间数据中的热点和冷点，即显著高值或低值的集群，而不考虑值之间的正负相关性。
+高G值：表明该区域是一个 热点（高值聚集区）。
+低G值：表明该区域是一个 冷点（低值聚集区）。
+因此就用Getis-Ord G值：
+
+```{r}
+Gi_res2021_Local_people_Density <- res2021 %>%
+  pull(casualty_people_rate) %>%
+  as.vector()%>%
+  localG(., res2021.lw)
+
+Gi_res2021_Local_length_Density <- res2021 %>%
+  pull(casualty_length_rate) %>%
+  as.vector()%>%
+  localG(., res2021.lw)
+
+head(Gi_res2021_Local_people_Density)
+head(Gi_res2021_Local_length_Density)
+
+res2021 <- res2021 %>%
+  mutate(casualty_people_rate_G = as.numeric(Gi_res2021_Local_people_Density)) %>%   mutate(casualty_length_rate_G = as.numeric(Gi_res2021_Local_length_Density))
+
+Gi_res2022_Local_people_Density <- res2022 %>%
+  pull(casualty_people_rate) %>%
+  as.vector()%>%
+  localG(., res2022.lw)
+
+Gi_res2022_Local_length_Density <- res2022 %>%
+  pull(casualty_length_rate) %>%
+  as.vector()%>%
+  localG(., res2022.lw)
+
+res2022 <- res2022 %>%
+  mutate(casualty_people_rate_G = as.numeric(Gi_res2022_Local_people_Density)) %>%   mutate(casualty_length_rate_G = as.numeric(Gi_res2022_Local_length_Density))
+
+
+Gi_res2023_Local_people_Density <- res2023 %>%
+  pull(casualty_people_rate) %>%
+  as.vector()%>%
+  localG(., res2023.lw)
+
+Gi_res2023_Local_length_Density <- res2023 %>%
+  pull(casualty_length_rate) %>%
+  as.vector()%>%
+  localG(., res2023.lw)
+
+res2023 <- res2023 %>%
+  mutate(casualty_people_rate_G = as.numeric(Gi_res2023_Local_people_Density)) %>%   mutate(casualty_length_rate_G = as.numeric(Gi_res2023_Local_length_Density))
+
+```
+
+
+mapping
+```{r}
+library(RColorBrewer)
+
+breaks1<-c(-1000,-2.58,-1.96,-1.65,1.65,1.96,2.58,1000)
+GIColours<- rev(brewer.pal(8, "RdBu"))
+
+#now plot on an interactive map
+t1 <- tm_shape(res2021) +
+    tm_polygons("casualty_people_rate_G",
+        style="fixed",
+        breaks=breaks1,
+        palette=GIColours,
+        midpoint=NA,
+        title="Local Getis-Ord G") +
+  tm_compass(position = c("right", "top"),type = "arrow") + 
+  tm_scale_bar(position = c("center", "bottom")) +
+  tm_layout(title = "Hot and cold spots of Casualty Rate (2021)", 
+            legend.position = c("left", "bottom"),
+            title.position = c("center", "top"))
+t1
+tmap_save(t1, 'Hot and cold spots of Casualty Rate (2021).png')
+```
+
+```{r}
+#now plot on an interactive map
+tmap_mode('plot')
+
+t2 <- tm_shape(res2021) +
+    tm_polygons("casualty_length_rate_G",
+        style="fixed",
+        breaks=breaks1,
+        palette=GIColours,
+        midpoint=NA,
+        title="Local Getis-Ord G") +
+  tm_compass(position = c("right", "top"),type = "arrow") + 
+  tm_scale_bar(position = c("center", "bottom")) +
+  tm_layout(title = "Hot and cold spots of Casualty Location Rate (2021)", 
+            legend.position = c("left", "bottom"),
+            title.position = c("center", "top"))
+
+tmap_save(t2, 'Hot and cold spots of Casualty Length Rate (2021).png')
+t2
+```
+
+```{r}
+t3 <- tm_shape(res2022) +
+    tm_polygons("casualty_people_rate_G",
+        style="fixed",
+        breaks=breaks1,
+        palette=GIColours,
+        midpoint=NA,
+        title="Local Getis-Ord G") +
+  tm_compass(position = c("right", "top"),type = "arrow") + 
+  tm_scale_bar(position = c("center", "bottom")) +
+  tm_layout(title = "Hot and cold spots of Casualty Rate (2022)", 
+            legend.position = c("left", "bottom"),
+            title.position = c("center", "top"))
+
+tmap_save(t3, 'Hot and cold spots of Casualty Rate (2022).png')
+t3
+```
+
+```{r}
+t4 <- tm_shape(res2022) +
+    tm_polygons("casualty_length_rate_G",
+        style="fixed",
+        breaks=breaks1,
+        palette=GIColours,
+        midpoint=NA,
+        title="Local Getis-Ord G") +
+  tm_compass(position = c("right", "top"),type = "arrow") + 
+  tm_scale_bar(position = c("center", "bottom")) +
+  tm_layout(title = "Hot and cold spots of Casualty Location Rate (2022)", 
+            legend.position = c("left", "bottom"),
+            title.position = c("center", "top"))
+
+tmap_save(t4, 'Hot and cold spots of Casualty Length Rate (2022).png')
+t4
+
+```
+
+```{r}
+t5 <- tm_shape(res2023) +
+    tm_polygons("casualty_people_rate_G",
+        style="fixed",
+        breaks=breaks1,
+        palette=GIColours,
+        midpoint=NA,
+        title="Local Getis-Ord G") +
+  tm_compass(position = c("right", "top"),type = "arrow") + 
+  tm_scale_bar(position = c("center", "bottom")) +
+  tm_layout(title = "Hot and cold spots of Casualty Rate  (2023)", 
+            legend.position = c("left", "bottom"),
+            title.position = c("center", "top"))
+
+tmap_save(t5, 'Hot and cold spots of Casualty Rate (2023).png')
+t5
+```
+
+```{r}
+t6 <- tm_shape(res2023) +
+    tm_polygons("casualty_length_rate_G",
+        style="fixed",
+        breaks=breaks1,
+        palette=GIColours,
+        midpoint=NA,
+        title="Local Getis-Ord G") +
+  tm_compass(position = c("right", "top"),type = "arrow") + 
+  tm_scale_bar(position = c("center", "bottom")) +
+  tm_layout(title = "Hot and cold spots of Casualty Location Rate (2023)", 
+            legend.position = c("left", "bottom"),
+            title.position = c("center", "top"))
+
+tmap_save(t6, 'Hot and cold spots of Casualty Length Rate (2023).png')
+t6
+```
+
